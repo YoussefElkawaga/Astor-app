@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/progress_service.dart';
 import '../widgets/progress_display.dart';
 import 'package:provider/provider.dart';
+import '../widgets/results_dialog.dart';
 
 class VocabularyPracticeScreen extends StatefulWidget {
   const VocabularyPracticeScreen({super.key});
@@ -13,6 +14,16 @@ class VocabularyPracticeScreen extends StatefulWidget {
 
 class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
     with SingleTickerProviderStateMixin {
+  // Modern color palette
+  static const Color primaryColor = Color(0xFF6366F1); // Indigo
+  static const Color secondaryColor = Color(0xFF8B5CF6); // Purple
+  static const Color accentColor = Color(0xFFEC4899); // Pink
+  static const Color successColor = Color(0xFF22C55E); // Green
+  static const Color errorColor = Color(0xFFEF4444); // Red
+  static const Color surfaceColor = Color(0xFF1E293B); // Slate
+  static const Color backgroundColor = Color(0xFF0F172A); // Darker slate
+  static const Color textColor = Color(0xFFF8FAFC); // Light gray
+
   int currentWord = 0;
   bool isAnswered = false;
   int selectedAnswer = -1;
@@ -29,6 +40,7 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
   double progressAnimation = 0.0;
   double masteryAnimation = 0.0;
   int totalQuestions = 10;
+  late DateTime _startTime;
 
   final List<Map<String, dynamic>> words = [
     {
@@ -103,6 +115,7 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+    _startTime = DateTime.now();
   }
 
   void _showFeedbackAnimation(bool isCorrect) {
@@ -385,177 +398,6 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
     return const Color(0xFFE53935);
   }
 
-  void _showFinalResults() {
-    final percentage = (correctAnswers / words.length * 100).round();
-    final points = (percentage * 10).round();
-
-    progressService.updateCategoryProgress(
-      category,
-      correctAnswers: correctAnswers,
-      totalQuestions: words.length,
-      points: points,
-    );
-
-    progressService.achievements['stats']['perfectScores'] =
-        (progressService.achievements['stats']['perfectScores'] ?? 0) +
-            (percentage == 100 ? 1 : 0);
-    progressService.achievements['stats']['lessonsCompleted'] =
-        (progressService.achievements['stats']['lessonsCompleted'] ?? 0) + 1;
-
-    showGeneralDialog(
-      context: context,
-      pageBuilder: (_, __, ___) => Container(),
-      transitionBuilder: (context, animation, _, child) {
-        return Stack(
-          children: [
-            Container(
-              color: Colors.black.withOpacity(0.5 * animation.value),
-            ),
-            SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOut,
-              )),
-              child: ScaleTransition(
-                scale: animation,
-                child: AlertDialog(
-                  backgroundColor: const Color(0xFF1C1C1E),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  content: Container(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TweenAnimationBuilder<double>(
-                          duration: const Duration(milliseconds: 1500),
-                          curve: Curves.easeOutBack,
-                          tween: Tween(begin: 0, end: percentage.toDouble()),
-                          builder: (context, value, child) {
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: _getScoreColor(percentage),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                '${value.round()}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        TweenAnimationBuilder<double>(
-                          duration: const Duration(milliseconds: 600),
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: Column(
-                            children: [
-                              Text(
-                                _getResultMessage(percentage),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Words Mastered: $correctAnswers\nMistakes Made: $wrongAnswers',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 18,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            Navigator.of(context).pop();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2F6FED),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Finish',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 600),
-      barrierDismissible: false,
-    );
-  }
-
-  Color _getScoreColor(int percentage) {
-    if (percentage >= 90) return const Color(0xFF4CAF50);
-    if (percentage >= 70) return const Color(0xFF2F6FED);
-    if (percentage >= 50) return const Color(0xFFFFA726);
-    return const Color(0xFFE53935);
-  }
-
-  String _getResultMessage(int percentage) {
-    if (percentage >= 90) return 'Vocabulary Master!';
-    if (percentage >= 70) return 'Well Done!';
-    if (percentage >= 50) return 'Keep Learning!';
-    return 'Practice More!';
-  }
-
-  Color _getButtonColor(int index) {
-    if (!isAnswered) {
-      return const Color(0xFF2C2C2E);
-    }
-
-    final correctIndex = words[currentWord]['correct'] as int;
-    if (index == correctIndex) {
-      return const Color(0xFF4CAF50).withOpacity(0.8);
-    }
-    if (index == selectedAnswer && selectedAnswer != correctIndex) {
-      return const Color(0xFFE53935).withOpacity(0.8);
-    }
-    return const Color(0xFF2C2C2E).withOpacity(0.5);
-  }
-
   void _checkAnswer(int index) {
     if (isAnswered) return;
 
@@ -581,6 +423,7 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
           correctAnswers: correctAnswers,
           totalQuestions: words.length,
           points: points,
+          timeSpent: DateTime.now().difference(_startTime),
         );
 
         progressAnimation = (currentWord + 1) / words.length;
@@ -607,6 +450,37 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
         });
       }
     });
+  }
+
+  void _showFinalResults() {
+    final timeSpent = DateTime.now().difference(_startTime);
+    final percentage = (correctAnswers / words.length * 100).round();
+    final points = (percentage * 10).round();
+
+    // Final update to progress
+    Provider.of<ProgressService>(context, listen: false).updateCategoryProgress(
+      category,
+      correctAnswers: correctAnswers,
+      totalQuestions: words.length,
+      points: points,
+      timeSpent: timeSpent,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ResultsDialog(
+        correctAnswers: correctAnswers,
+        totalQuestions: words.length,
+        timeSpent: timeSpent,
+        accuracy: percentage,
+        points: points,
+        onContinue: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   void _showPointsGainAnimation(int points) {
@@ -670,8 +544,8 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
               boxShadow: [
                 BoxShadow(
                   color: _getButtonColor(index).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -679,20 +553,45 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
               onPressed: () => _checkAnswer(index),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _getButtonColor(index),
-                padding: const EdgeInsets.all(20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: isAnswered ? 2 : 5,
               ),
-              child: Text(
-                words[currentWord]['options'][index],
-                style: TextStyle(
-                  color: Colors.white.withOpacity(isAnswered ? 0.9 : 1),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: textColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        String.fromCharCode(65 + index), // A, B, C, D
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.9),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      words[currentWord]['options'][index],
+                      style: TextStyle(
+                        color: textColor.withOpacity(isAnswered ? 0.9 : 1),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -715,18 +614,71 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
       correctAnswers: correctAnswers,
       totalQuestions: totalQuestions,
       points: points,
+      timeSpent: DateTime.now().difference(_startTime),
     );
+  }
+
+  Color _getButtonColor(int index) {
+    if (!isAnswered) {
+      return surfaceColor;
+    }
+
+    final correctIndex = words[currentWord]['correct'] as int;
+    if (index == correctIndex) {
+      return successColor.withOpacity(0.9);
+    }
+    if (index == selectedAnswer && selectedAnswer != correctIndex) {
+      return errorColor.withOpacity(0.9);
+    }
+    return surfaceColor.withOpacity(0.5);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
-        title: const Text('Vocabulary Practice'),
+        backgroundColor: surfaceColor,
+        elevation: 0,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.book, color: textColor, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Vocabulary Practice',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Question ${currentWord + 1} of ${words.length}',
+                  style: TextStyle(
+                    color: textColor.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -758,52 +710,7 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          AnimatedBuilder(
-                            animation: _shakeAnimation,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(_shakeAnimation.value, 0),
-                                child: child,
-                              );
-                            },
-                            child: Container(
-                              height: 200,
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 32),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1C1C1E),
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF2F6FED)
-                                        .withOpacity(0.2),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    words[currentWord]['word']!,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Choose the correct meaning',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          _buildWordDisplay(),
                           Column(
                             children: List.generate(
                               (words[currentWord]['options'] as List).length,
@@ -819,6 +726,59 @@ class _VocabularyPracticeScreenState extends State<VocabularyPracticeScreen>
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildWordDisplay() {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 32),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryColor, secondaryColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            words[currentWord]['word']!,
+            style: const TextStyle(
+              color: textColor,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: textColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Choose the correct meaning',
+              style: TextStyle(
+                color: textColor.withOpacity(0.9),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

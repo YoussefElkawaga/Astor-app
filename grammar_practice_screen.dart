@@ -30,6 +30,16 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
   int questionsAnswered = 0;
   late DateTime _startTime;
 
+  // Modern color palette
+  static const Color primaryColor = Color(0xFF6366F1); // Indigo
+  static const Color secondaryColor = Color(0xFF8B5CF6); // Purple
+  static const Color accentColor = Color(0xFFEC4899); // Pink
+  static const Color successColor = Color(0xFF22C55E); // Green
+  static const Color errorColor = Color(0xFFEF4444); // Red
+  static const Color surfaceColor = Color(0xFF1E293B); // Slate
+  static const Color backgroundColor = Color(0xFF0F172A); // Darker slate
+  static const Color textColor = Color(0xFFF8FAFC); // Light gray
+
   final List<Map<String, dynamic>> questions = [
     {
       'question': 'Choose the correct form of the verb:',
@@ -127,6 +137,7 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
           correctAnswers: correctAnswers,
           totalQuestions: questions.length,
           points: points,
+          timeSpent: DateTime.now().difference(_startTime),
         );
 
         progressAnimation = (currentQuestion + 1) / questions.length;
@@ -140,20 +151,50 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
       }
     });
 
-    // Always move to next question after delay
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
-        if (currentQuestion < questions.length - 1) {
-          setState(() {
+        setState(() {
+          if (currentQuestion < questions.length - 1) {
             currentQuestion++;
             isAnswered = false;
             selectedAnswer = -1;
-          });
-        } else {
-          _finishPractice();
-        }
+          } else {
+            _showFinalResults();
+          }
+        });
       }
     });
+  }
+
+  void _showFinalResults() {
+    final timeSpent = DateTime.now().difference(_startTime);
+    final percentage = (correctAnswers / questions.length * 100).round();
+    final points = (percentage * 10).round();
+
+    // Final update to progress
+    Provider.of<ProgressService>(context, listen: false).updateCategoryProgress(
+      category,
+      correctAnswers: correctAnswers,
+      totalQuestions: questions.length,
+      points: points,
+      timeSpent: timeSpent,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ResultsDialog(
+        correctAnswers: correctAnswers,
+        totalQuestions: questions.length,
+        timeSpent: timeSpent,
+        accuracy: percentage,
+        points: points,
+        onContinue: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   void _showFeedbackAnimation(bool isCorrect) {
@@ -193,15 +234,11 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
                   content: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: isCorrect
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFE53935),
+                      color: isCorrect ? successColor : errorColor,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: (isCorrect
-                                  ? const Color(0xFF4CAF50)
-                                  : const Color(0xFFE53935))
+                          color: (isCorrect ? successColor : errorColor)
                               .withOpacity(0.3),
                           blurRadius: 20,
                           spreadRadius: 5,
@@ -280,34 +317,9 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
     });
   }
 
-  void _finishPractice() {
-    final progressService =
-        Provider.of<ProgressService>(context, listen: false);
-
-    progressService.updateProgress(
-      category: 'grammar',
-      correctAnswers: correctAnswers,
-      totalQuestions: questions.length,
-      timeSpent: DateTime.now().difference(_startTime),
-    );
-
-    // Show results dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => ResultsDialog(
-        correctAnswers: correctAnswers,
-        totalQuestions: questions.length,
-        onContinue: () {
-          Navigator.pop(context); // Close dialog
-          Navigator.pop(context); // Return to practice menu
-        },
-      ),
-    );
-  }
-
   void _showPointsGainAnimation(int points) {
     late final OverlayEntry overlay;
+
     overlay = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).size.height * 0.3,
@@ -323,7 +335,7 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50),
+                    color: successColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -348,18 +360,56 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
         ),
       ),
     );
+
     Overlay.of(context).insert(overlay);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
-        title: const Text('Grammar Practice'),
+        backgroundColor: surfaceColor,
+        elevation: 0,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.edit_note, color: textColor, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Grammar Practice',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Question ${currentQuestion + 1} of ${questions.length}',
+                  style: TextStyle(
+                    color: textColor.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -375,10 +425,17 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
                 end: (currentQuestion + 1) / questions.length,
               ),
               builder: (context, value, _) {
-                return LinearProgressIndicator(
-                  value: value,
-                  backgroundColor: const Color(0xFF2C2C2E),
-                  valueColor: AlwaysStoppedAnimation(_getProgressColor(value)),
+                return Container(
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: value,
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                      valueColor: AlwaysStoppedAnimation(primaryColor),
+                    ),
+                  ),
                 );
               },
             ),
@@ -398,14 +455,22 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
                       },
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1C1C1E),
-                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              primaryColor,
+                              secondaryColor,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(32),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2F6FED).withOpacity(0.2),
-                              blurRadius: 20,
+                              color: primaryColor.withOpacity(0.2),
+                              blurRadius: 30,
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
@@ -416,16 +481,18 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
                               questions[currentQuestion]['question'] as String,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 24,
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5,
                               ),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               questions[currentQuestion]['sentence'] as String,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 18,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 20,
+                                height: 1.5,
                               ),
                             ),
                           ],
@@ -466,8 +533,8 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
               boxShadow: [
                 BoxShadow(
                   color: _getButtonColor(index).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -475,20 +542,45 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
               onPressed: () => _checkAnswer(index),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _getButtonColor(index),
-                padding: const EdgeInsets.all(20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: isAnswered ? 2 : 5,
               ),
-              child: Text(
-                questions[currentQuestion]['options'][index],
-                style: TextStyle(
-                  color: Colors.white.withOpacity(isAnswered ? 0.9 : 1),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: textColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        String.fromCharCode(65 + index),
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.9),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      questions[currentQuestion]['options'][index],
+                      style: TextStyle(
+                        color: textColor.withOpacity(isAnswered ? 0.9 : 1),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -644,12 +736,18 @@ class _GrammarPracticeScreenState extends State<GrammarPracticeScreen>
 class ResultsDialog extends StatelessWidget {
   final int correctAnswers;
   final int totalQuestions;
+  final Duration timeSpent;
+  final int accuracy;
+  final int points;
   final VoidCallback onContinue;
 
   const ResultsDialog({
     super.key,
     required this.correctAnswers,
     required this.totalQuestions,
+    required this.timeSpent,
+    required this.accuracy,
+    required this.points,
     required this.onContinue,
   });
 
@@ -657,7 +755,15 @@ class ResultsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Practice Complete!'),
-      content: Text('Score: $correctAnswers/$totalQuestions'),
+      content: Column(
+        children: [
+          Text('Score: $correctAnswers/$totalQuestions'),
+          Text(
+              'Time spent: ${timeSpent.inMinutes} minutes and ${timeSpent.inSeconds % 60} seconds'),
+          Text('Accuracy: $accuracy%'),
+          Text('Points: $points'),
+        ],
+      ),
       actions: [
         TextButton(
           onPressed: onContinue,
